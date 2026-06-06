@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><title>Demo 登录</title></head>
+<body>
+  <h1>登录</h1>
+  <form id="login">
+    <label for="user">用户名</label>
+    <input id="user" name="user" />
+    <label for="pwd">密码</label>
+    <input id="pwd" name="pwd" type="password" />
+    <button type="submit">登录</button>
+  </form>
+  <a href="register.html">注册</a>
+  <script>
+    // Demo 站点应用逻辑 - 内联脚本以便覆盖采集
+
+    // 这个函数预期不会被覆盖（用于测试覆盖度量的盲区检测）
+    function greet(name) {
+      return '欢迎回来,' + name;
+    }
+
+    function validateLogin(username, password) {
+      if (!username || !password) {
+        return false;
+      }
+      // 这个分支预期不会被覆盖：测试用密码 "secret123" (长度 9) ≥ 6
+      if (password.length < 6) {
+        return false;
+      }
+      return true;
+    }
+
+    function handleLogin(event) {
+      event.preventDefault();
+      const username = document.getElementById('user').value;
+      const password = document.getElementById('pwd').value;
+
+      if (validateLogin(username, password)) {
+        // 模拟登录成功
+        window.location.href = 'dashboard.html';
+      } else {
+        // 这个分支预期不会被覆盖：测试用合法账号登录成功
+        alert('登录失败：用户名或密码错误');
+      }
+    }
+
+    // 页面加载时绑定事件
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginForm = document.getElementById('login');
+      if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+      }
+    });
+  </script>
+</body>
+</html>

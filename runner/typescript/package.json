@@ -1,0 +1,11 @@
+{
+  "name": "foxtest-runner-ts",
+  "private": true,
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "monocart-coverage-reports": "^2.12.12"
+  },
+  "scripts": {
+    "test": "playwright test"
+  }
+}

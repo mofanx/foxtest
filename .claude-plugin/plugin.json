@@ -1,0 +1,17 @@
+{
+  "name": "foxtest",
+  "version": "0.1.0",
+  "description": "AI 驱动的 Web 自动化测试:自然语言用例 → 浏览器探索 → 语言无关 IR → Playwright(Python/TypeScript)脚本 → 多层覆盖度量。依赖 dp-cli 提供浏览器感知与操作。",
+  "author": "mofanx",
+  "homepage": "https://github.com/mofanx/foxtest",
+  "keywords": ["testing", "playwright", "ai", "automation", "coverage", "skill"],
+  "components": {
+    "skills": [
+      {
+        "name": "foxtest",
+        "path": "skills/foxtest",
+        "description": "AI 驱动的 Web 端到端测试生成与覆盖度量"
+      }
+    ]
+  }
+}

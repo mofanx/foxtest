@@ -1,0 +1,14 @@
+{
+  "name": "搜索-关键词返回结果",
+  "feature": "搜索",
+  "baseURL": "https://app.example.com",
+  "tags": ["search"],
+  "steps": [
+    {"action": "goto", "url": "/"},
+    {"action": "fill", "locator": {"by": "placeholder", "value": "搜索商品"}, "value": "手机"},
+    {"action": "press", "locator": {"by": "placeholder", "value": "搜索商品"}, "key": "Enter"},
+    {"action": "expect", "type": "url_contains", "value": "/search"},
+    {"action": "expect", "type": "element_visible", "locator": {"by": "testid", "value": "result-list"}},
+    {"action": "expect", "type": "count_eq", "locator": {"by": "css", "value": ".result-item"}, "count": 10}
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "demo-登录跳转",
+  "feature": "登录",
+  "baseURL": "http://localhost:8000",
+  "tags": ["demo", "smoke"],
+  "steps": [
+    {"action": "goto", "url": "/index.html"},
+    {"action": "fill", "locator": {"by": "label", "value": "用户名"}, "value": "admin"},
+    {"action": "fill", "locator": {"by": "label", "value": "密码"}, "value": "secret123"},
+    {"action": "click", "locator": {"by": "role", "role": "button", "name": "登录"}},
+    {"action": "expect", "type": "url_contains", "value": "/dashboard"},
+    {"action": "expect", "type": "element_visible", "locator": {"by": "testid", "value": "welcome"}}
+  ]
+}

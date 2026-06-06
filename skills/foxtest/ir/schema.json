@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ai-web-tester/ir/schema.json",
+  "title": "AI Web Tester IR",
+  "description": "语言无关的测试用例中间表示(IR)。单一事实源,由此生成 Python(pytest)与 TypeScript(@playwright/test)两种 Playwright 脚本。",
+  "type": "object",
+  "required": ["name", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {"type": "string", "description": "用例名称(会成为测试函数/用例标题)"},
+    "feature": {"type": "string", "description": "所属功能模块,用于覆盖统计分组"},
+    "baseURL": {"type": "string", "description": "基础 URL;step.url 以 / 开头时自动拼接"},
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/definitions/step"}
+    }
+  },
+  "definitions": {
+    "locator": {
+      "type": "object",
+      "required": ["by"],
+      "additionalProperties": false,
+      "properties": {
+        "by": {
+          "type": "string",
+          "enum": ["role", "label", "text", "placeholder", "testid", "alt", "title", "css", "xpath"]
+        },
+        "value": {"type": "string", "description": "label/text/placeholder/testid/alt/title/css/xpath 的值"},
+        "role": {"type": "string", "description": "by=role 时的 ARIA role,如 button/link/textbox"},
+        "name": {"type": "string", "description": "by=role 时的可访问名称"},
+        "exact": {"type": "boolean", "description": "是否精确匹配(role/label/text)"},
+        "nth": {"type": "integer", "description": "命中多个时取第 n 个(0 基)"}
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["goto", "click", "dblclick", "fill", "type", "press", "select",
+                   "check", "uncheck", "hover", "wait", "expect", "upload", "drag", "scroll"]
+        },
+        "url": {"type": "string", "description": "goto 的目标(相对或绝对)"},
+        "locator": {"$ref": "#/definitions/locator"},
+        "value": {"type": "string", "description": "fill/type/select 的值;支持 <secret:ENV_NAME> 占位读取环境变量"},
+        "key": {"type": "string", "description": "press 的按键,如 Enter / Escape"},
+        "ms": {"type": "integer", "description": "wait 的毫秒数"},
+        "comment": {"type": "string"},
+        "type": {
+          "type": "string",
+          "description": "action=expect 时的断言类型",
+          "enum": ["url_contains", "url_eq", "title_contains", "text_visible",
+                   "element_visible", "element_hidden", "value_eq", "count_eq", "attr_eq",
+                   "contains_text", "attr_exists", "enabled", "disabled"]
+        },
+        "attr": {"type": "string", "description": "attr_eq 的属性名"},
+        "count": {"type": "integer", "description": "count_eq 的期望数量"},
+        "target": {"type": "object", "description": "drag 动作的目标元素 locator", "$ref": "#/definitions/locator"}
+      },
+      "allOf": [
+        {"if": {"properties": {"action": {"const": "goto"}}}, "then": {"required": ["url"]}},
+        {"if": {"properties": {"action": {"const": "expect"}}}, "then": {"required": ["type"]}},
+        {"if": {"properties": {"action": {"enum": ["click", "dblclick", "hover", "check", "uncheck"]}}},
+         "then": {"required": ["locator"]}},
+        {"if": {"properties": {"action": {"enum": ["fill", "type", "select"]}}},
+         "then": {"required": ["locator", "value"]}},
+        {"if": {"properties": {"action": {"const": "upload"}}}, "then": {"required": ["locator", "value"]}},
+        {"if": {"properties": {"action": {"const": "drag"}}}, "then": {"required": ["locator", "target"]}},
+        {"if": {"properties": {"action": {"const": "scroll"}}}, "then": {"required": ["locator"]}}
+      ]
+    }
+  }
+}

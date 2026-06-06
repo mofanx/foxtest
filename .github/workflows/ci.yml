@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: 安装依赖
+        run: |
+          pip install pytest jsonschema
+
+      - name: 运行单测
+        run: |
+          python -m pytest tests/ -q
+
+      - name: codegen 冒烟测试
+        run: |
+          python skills/foxtest/scripts/validate_ir.py skills/foxtest/ir/examples/*.ir.json
+          python skills/foxtest/scripts/codegen.py skills/foxtest/ir/examples/*.ir.json --lang both --out /tmp/smoke

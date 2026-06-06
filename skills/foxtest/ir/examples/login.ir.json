@@ -1,0 +1,14 @@
+{
+  "name": "登录-正常登录",
+  "feature": "登录",
+  "baseURL": "https://app.example.com",
+  "tags": ["smoke", "auth"],
+  "steps": [
+    {"action": "goto", "url": "/login"},
+    {"action": "fill", "locator": {"by": "label", "value": "用户名"}, "value": "admin"},
+    {"action": "fill", "locator": {"by": "label", "value": "密码"}, "value": "<secret:APP_PASSWORD>"},
+    {"action": "click", "locator": {"by": "role", "role": "button", "name": "登录"}},
+    {"action": "expect", "type": "url_contains", "value": "/dashboard"},
+    {"action": "expect", "type": "text_visible", "value": "欢迎"}
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "foxtest",
+  "displayName": "FoxTest - AI Web Testing",
+  "description": "AI 驱动的 Web 端到端测试生成与覆盖度量。将自然语言测试用例转换为 Playwright 脚本(Python + TypeScript)，支持多层覆盖度量。",
+  "version": "0.1.0",
+  "author": "mofanx",
+  "license": "MIT",
+  "homepage": "https://github.com/mofanx/foxtest",
+  "repository": "https://github.com/mofanx/foxtest",
+  "keywords": ["testing", "playwright", "ai", "automation", "coverage", "e2e"],
+  "category": "Testing",
+  "dependencies": {
+    "skills": ["dp-cli"]
+  },
+  "capabilities": [
+    "自然语言用例解析",
+    "浏览器自动探索",
+    "IR 中间表示生成",
+    "双语言代码生成(Python/TypeScript)",
+    "用例覆盖度量",
+    "UI 元素覆盖度量",
+    "前端代码覆盖度量",
+    "失败自愈"
+  ]
+}
