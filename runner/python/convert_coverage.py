@@ -165,4 +165,8 @@ def main():
 
 
 if __name__ == "__main__":
+    # 设置 stdout 编码为 UTF-8，以兼容 Windows GBK 控制台
+    import io
+    if hasattr(sys.stdout, 'buffer'):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     main()

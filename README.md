@@ -96,3 +96,10 @@ test -f ~/.claude/plugins/foxtest/skills/foxtest/SKILL.md && echo "安装成功"
 - [ ] M1:AI 探索循环(snapshot→决策→IR)实战打通
 - [ ] ③ 前端 JS 代码覆盖(CDP / Playwright coverage)
 - [ ] Claude Code plugin 正式发布(marketplace)
+
+
+---
+
+## 开发文档
+
+详细的开发过程记录、设计决策和任务派单请查看 [docs/phase1-planning/](docs/phase1-planning/)。
