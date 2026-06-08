@@ -153,3 +153,51 @@ python $SKILL/scripts/coverage.py ui --snapshot snapshot.json --ir <case>.ir.jso
 - `dp-cli` 技能(浏览器感知/操作)
 - Python:`pytest`、`playwright`(回放);`jsonschema`(可选,IR 校验)
 - TypeScript:`@playwright/test`
+
+---
+
+## 浏览器配置
+
+### 默认配置
+
+生成的 Playwright 脚本**默认使用 Playwright 安装的 Chromium 浏览器**。这是最稳定可靠的选择，因为：
+
+- Chromium 随 Playwright 自动安装，版本受控
+- 跨平台行为一致
+- 支持所有 Playwright 特性（包括 coverage API）
+
+### 使用系统浏览器（可选）
+
+如需使用系统安装的 Chrome/Chromium，可修改对应配置：
+
+**TypeScript (`playwright.config.ts`)**:
+```ts
+use: {
+  channel: 'chrome',  // 或 'msedge' 等
+}
+```
+
+**Python (`conftest.py` 或测试文件)**:
+```python
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    return {**browser_context_args, "channel": "chrome"}
+```
+
+### 安装浏览器
+
+首次使用前需安装浏览器：
+```bash
+# 安装 Playwright Chromium（推荐）
+npx playwright install chromium
+
+# 安装系统浏览器支持（可选）
+npx playwright install chrome
+```
+
+### 限制说明
+
+- **代码覆盖功能**：使用系统 Chrome 时，部分 CDP/coverage API 可能不可用
+- **CI 环境**：推荐使用默认 Chromium，避免依赖系统浏览器
+
+---

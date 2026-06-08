@@ -9,7 +9,7 @@ def test_scaffold_basic():
     """测试基本脚手架生成。"""
     result = subprocess.run(
         [
-            "python3",
+            "python",
             "skills/foxtest/scripts/ir_scaffold.py",
             "--name", "测试用例",
             "--feature", "测试",
@@ -35,7 +35,7 @@ def test_scaffold_multiple_intents():
     """测试多个意图。"""
     result = subprocess.run(
         [
-            "python3",
+            "python",
             "skills/foxtest/scripts/ir_scaffold.py",
             "--name", "多步骤测试",
             "--intent", "步骤1",
@@ -57,7 +57,7 @@ def test_scaffold_validate():
     """测试脚手架输出能通过 validate_ir.py。"""
     result = subprocess.run(
         [
-            "python3",
+            "python",
             "skills/foxtest/scripts/ir_scaffold.py",
             "--name", "验证测试",
             "--base", "http://localhost:8000",
@@ -68,18 +68,18 @@ def test_scaffold_validate():
         check=True,
     )
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
         f.write(result.stdout)
         temp_path = f.name
 
     try:
         validate_result = subprocess.run(
-            ["python3", "skills/foxtest/scripts/validate_ir.py", temp_path],
+            ["python", "skills/foxtest/scripts/validate_ir.py", temp_path],
             capture_output=True,
             text=True,
             check=True,
         )
-        assert "✓" in validate_result.stdout
+        assert "[OK]" in validate_result.stdout
     finally:
         import os
         os.unlink(temp_path)
@@ -89,7 +89,7 @@ def test_scaffold_minimal():
     """测试最小参数（只有 name）。"""
     result = subprocess.run(
         [
-            "python3",
+            "python",
             "skills/foxtest/scripts/ir_scaffold.py",
             "--name", "最小测试",
         ],

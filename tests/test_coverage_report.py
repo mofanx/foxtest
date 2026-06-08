@@ -27,7 +27,7 @@ def test_report_basic():
     # 运行 report 命令 (不带 snapshot 和 code-lcov)
     result = subprocess.run(
         [
-            "python3",
+            "python",
             "skills/foxtest/scripts/coverage.py",
             "report",
             "--cases-dir", str(cases_dir),

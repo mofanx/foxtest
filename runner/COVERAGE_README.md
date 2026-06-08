@@ -25,7 +25,7 @@ def test_example(page, coverage_collector):
 
 ```bash
 cd runner/python
-python3 convert_coverage.py ../coverage/coverage.json ../demo-site/ ../coverage/lcov.info
+python convert_coverage.py ../coverage/coverage.json ../demo-site/ ../coverage/lcov.info
 ```
 
 ### 依赖

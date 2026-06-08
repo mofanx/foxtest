@@ -67,20 +67,24 @@ def validate_file(path: str) -> list:
 def main(argv=None):
     argv = argv or sys.argv[1:]
     if not argv:
-        print("用法: python validate_ir.py <ir.json> [...]")
+        print("Usage: python validate_ir.py <ir.json> [...]")
         return 2
     failed = False
     for path in argv:
         errs = validate_file(path)
         if errs:
             failed = True
-            print(f"✗ {path}")
+            print(f"[FAIL] {path}")
             for e in errs:
                 print(f"    - {e}")
         else:
-            print(f"✓ {path}")
+            print(f"[OK] {path}")
     return 1 if failed else 0
 
 
 if __name__ == "__main__":
+    # 设置 stdout 编码为 UTF-8，以兼容 Windows GBK 控制台
+    import io
+    if hasattr(sys.stdout, 'buffer'):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.exit(main())
