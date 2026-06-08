@@ -35,14 +35,49 @@ tests/                             # 脚本单测(确定性保障)
 
 ## 快速试用
 
+### 方式 1: 使用现有示例
+
 ```bash
-S=skills/foxtest
 # 校验示例 IR
-python $S/scripts/validate_ir.py $S/ir/examples/login.ir.json
+python skills/foxtest/scripts/validate_ir.py skills/foxtest/ir/examples/login.ir.json
+
 # 生成双语言脚本
-python $S/scripts/codegen.py $S/ir/examples/*.ir.json --lang both --out out/
-# 跑脚本单测
-pytest tests/
+python skills/foxtest/scripts/codegen.py skills/foxtest/ir/examples/*.ir.json --lang both --out runner/
+
+# 运行生成的测试 (需先安装依赖)
+cd runner/python
+pip install -r requirements.txt
+python -m playwright install chromium
+# 启动 demo 站点后运行测试
+python -m http.server 8000 --directory ../demo-site &
+pytest tests/test_demo_login.py
+```
+
+### 方式 2: 创建自己的测试
+
+```bash
+# 1. 使用脚手架生成 IR 模板
+python skills/foxtest/scripts/ir_scaffold.py \
+  --name "我的测试用例" \
+  --feature "登录" \
+  --base https://example.com \
+  --intent "填写用户名" \
+  --intent "点击登录" > my_test.ir.json
+
+# 2. 手动填充 IR 中的 locator 详情
+
+# 3. 校验 IR
+python skills/foxtest/scripts/validate_ir.py my_test.ir.json
+
+# 4. 生成测试脚本
+python skills/foxtest/scripts/codegen.py my_test.ir.json --lang py --out tests/
+```
+
+### 运行单测
+
+```bash
+# 运行脚本单测
+pytest tests/ -q
 ```
 
 ## 作为 Skill 启用(本地)
@@ -93,8 +128,8 @@ test -f ~/.claude/plugins/foxtest/skills/foxtest/SKILL.md && echo "安装成功"
 - [x] IR schema + 双语言 codegen
 - [x] Skill 编排骨架 + IR 校验
 - [x] ① 用例覆盖 + ② UI 元素覆盖
+- [x] ③ 前端 JS 代码覆盖(CDP / Playwright coverage)
 - [ ] M1:AI 探索循环(snapshot→决策→IR)实战打通
-- [ ] ③ 前端 JS 代码覆盖(CDP / Playwright coverage)
 - [ ] Claude Code plugin 正式发布(marketplace)
 
 

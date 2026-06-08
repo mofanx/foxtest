@@ -1,0 +1,13 @@
+{
+  "name": "验证注册链接",
+  "feature": "登录",
+  "baseURL": "http://localhost:8000",
+  "tags": ["navigation", "smoke"],
+  "steps": [
+    {"action": "goto", "url": "/index.html"},
+    {"action": "expect", "type": "element_visible", "locator": {"by": "text", "value": "注册"}},
+    {"action": "click", "locator": {"by": "text", "value": "注册"}},
+    {"action": "expect", "type": "url_contains", "value": "register"},
+    {"action": "expect", "type": "title_contains", "value": "注册"}
+  ]
+}
