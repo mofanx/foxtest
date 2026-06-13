@@ -11,6 +11,28 @@
     "feature": {"type": "string", "description": "所属功能模块,用于覆盖统计分组"},
     "baseURL": {"type": "string", "description": "基础 URL;step.url 以 / 开头时自动拼接"},
     "tags": {"type": "array", "items": {"type": "string"}},
+    "architecture": {
+      "type": "object",
+      "description": "架构适配配置（可选）",
+      "properties": {
+        "mode": {"type": "string", "enum": ["linear", "pom"], "description": "架构模式：linear=线性脚本，pom=Page Object 模式"},
+        "language": {"type": "string", "enum": ["py", "ts"], "description": "目标语言（用于 auto 模式推断）"},
+        "base_class": {"type": "string", "description": "POM 模式的基类名称"},
+        "page_pattern": {"type": "string", "description": "Page Object 命名模式，如 {name}Page"},
+        "import_style": {"type": "string", "enum": ["absolute", "relative"], "description": "导入风格"},
+        "pages_path": {"type": "string", "description": "Page Object 文件路径"},
+        "page_class": {"type": "string", "description": "当前测试使用的页面类名（大模型根据参考项目分析确定）"},
+        "method_mappings": {
+          "type": "object",
+          "description": "方法映射（大模型根据参考项目分析确定）",
+          "properties": {
+            "goto": {"type": "string", "description": "导航方法名，如 navigate"},
+            "fill": {"type": "object", "description": "填充方法映射，按 locator value 映射到方法名"},
+            "click": {"type": "object", "description": "点击方法映射，按 locator value 映射到方法名"}
+          }
+        }
+      }
+    },
     "steps": {
       "type": "array",
       "minItems": 1,

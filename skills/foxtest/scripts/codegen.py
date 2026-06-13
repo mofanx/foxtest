@@ -266,11 +266,15 @@ def _expect_ts(step: dict) -> list:
 # 文件渲染
 # ─────────────────────────────────────────────────────────────────────────────
 
-def emit_python(ir: dict) -> str:
+def emit_python(ir: dict, architecture: dict = None) -> str:
     func = "test_" + _slug_ident(ir["name"])
     needs_os = any(_SECRET_RE.match(s.get("value", "") or "") for s in ir["steps"])
     needs_re = any(s.get("action") == "expect" and s.get("type") in
                    ("url_contains", "url_eq", "title_contains") for s in ir["steps"])
+    
+    # 判断是否使用 POM 模式
+    is_pom = architecture and architecture.get("mode") == "pom"
+    
     head = []
     if needs_os:
         head.append("import os")
@@ -279,50 +283,305 @@ def emit_python(ir: dict) -> str:
     head.append("")
     head.append("import pytest")
     head.append("from playwright.sync_api import Page, expect")
+    
+    # POM 模式添加导入
+    if is_pom:
+        base_class = architecture.get("base_class", "BasePage")
+        pages_path = architecture.get("pages_path", "pages")
+        import_style = architecture.get("import_style", "relative")
+        
+        if import_style == "relative":
+            head.append(f"from {pages_path}.base_page import {base_class}")
+            # 根据测试名称推断页面类
+            page_name = _infer_page_name(ir["name"], architecture)
+            head.append(f"from {pages_path}.{page_name.lower()} import {page_name}")
+        else:
+            head.append(f"from {pages_path}.base_page import {base_class}")
+            page_name = _infer_page_name(ir["name"], architecture)
+            head.append(f"from {pages_path}.{page_name.lower()} import {page_name}")
+    
     head.append("")
     head.append("")
     tags = ir.get("tags") or []
     deco = "".join(f"@pytest.mark.{re.sub(r'[^0-9A-Za-z_]', '_', t)}\n" for t in tags)
-    body = [f'{deco}def {func}(page: Page) -> None:',
-            f'    """{ir["name"]}（feature: {ir.get("feature", "")}）"""']
-    for step in ir["steps"]:
-        if step.get("comment"):
-            body.append(f'    # {step["comment"]}')
-        for line in _step_py(ir, step):
-            body.append(f'    {line}')
+    
+    if is_pom:
+        # POM 模式：使用 Page Object
+        page_class = architecture.get("page_class", _infer_page_name(ir["name"], architecture))
+        page_obj_var = page_class.lower()
+        method_mappings = architecture.get("method_mappings", {})
+        
+        body = [f'{deco}def {func}(page: Page) -> None:',
+                f'    """{ir["name"]}（feature: {ir.get("feature", "")}）"""',
+                f'    {page_obj_var} = {page_class}(page)']
+        
+        for step in ir["steps"]:
+            if step.get("comment"):
+                body.append(f'    # {step["comment"]}')
+            for line in _step_py_pom(page_obj_var, step, method_mappings):
+                body.append(f'    {line}')
+    else:
+        # 线性模式：直接使用 page
+        body = [f'{deco}def {func}(page: Page) -> None:',
+                f'    """{ir["name"]}（feature: {ir.get("feature", "")}）"""']
+        for step in ir["steps"]:
+            if step.get("comment"):
+                body.append(f'    # {step["comment"]}')
+            for line in _step_py(ir, step):
+                body.append(f'    {line}')
+    
     return "\n".join(head + body) + "\n"
 
 
-def emit_typescript(ir: dict) -> str:
+def _infer_page_name(test_name: str, architecture: dict) -> str:
+    """根据测试名称推断页面类名"""
+    # 简单实现：从测试名称提取关键部分
+    # 例如：登录测试 -> Login
+    pattern = architecture.get("page_pattern", "{name}Page")
+    
+    # 提取测试名称中的关键词，转换为英文
+    name_mapping = {
+        "登录": "Login",
+        "注册": "Register",
+        "首页": "Home",
+        "搜索": "Search",
+        "导航": "Navigation"
+    }
+    
+    # 移除"测试"、"Test"后缀
+    clean_name = test_name.replace("测试", "").replace("Test", "")
+    
+    # 尝试映射到英文
+    for cn, en in name_mapping.items():
+        if cn in clean_name:
+            page_name = en
+            break
+    else:
+        # 如果没有映射，使用原始名称的首字母大写
+        name_parts = clean_name.split("_")
+        if name_parts:
+            page_name = "".join(word.capitalize() for word in name_parts)
+        else:
+            page_name = "Page"
+    
+    return pattern.replace("{name}", page_name)
+
+
+def _step_py_pom(page_obj: str, step: dict, method_mappings: dict = None) -> list:
+    """POM 模式的 Python 步骤生成"""
+    action = step["action"]
+    lines = []
+    
+    if action == "goto":
+        # 使用 IR 中的方法映射，或默认 navigate
+        goto_method = method_mappings.get("goto", "navigate") if method_mappings else "navigate"
+        lines.append(f"{page_obj}.{goto_method}()")
+    elif action == "fill":
+        locator = step["locator"]
+        value = step.get("value", "")
+        # 使用 IR 中的方法映射
+        if method_mappings and "fill" in method_mappings:
+            fill_mappings = method_mappings["fill"]
+            locator_value = str(locator.get("value", ""))
+            # 查找匹配的方法名
+            method_name = fill_mappings.get(locator_value)
+            if method_name:
+                lines.append(f'{page_obj}.{method_name}("{value}")')
+            else:
+                lines.append(f'# TODO: 未找到 locator "{locator_value}" 的填充方法映射')
+        else:
+            lines.append(f'# TODO: 未配置 fill 方法映射')
+    elif action == "click":
+        locator = step["locator"]
+        # 使用 IR 中的方法映射
+        if method_mappings and "click" in method_mappings:
+            click_mappings = method_mappings["click"]
+            locator_value = str(locator.get("value", ""))
+            method_name = click_mappings.get(locator_value)
+            if method_name:
+                lines.append(f"{page_obj}.{method_name}()")
+            else:
+                lines.append(f'# TODO: 未找到 locator "{locator_value}" 的点击方法映射')
+        else:
+            lines.append(f'# TODO: 未配置 click 方法映射')
+    elif action == "expect":
+        t = step.get("type")
+        value = step.get("value", "")
+        if t == "url_contains":
+            lines.append(f'expect(page).to_have_url(new RegExp(".*" + "{value}"))')
+        else:
+            lines.append(f'# TODO: 实现断言 {t}')
+    else:
+        lines.append(f"# TODO: 实现动作 {action}")
+    
+    return lines
+
+
+def emit_typescript(ir: dict, architecture: dict = None) -> str:
     title = ir["name"]
     tags = ir.get("tags") or []
     tag_str = "".join(f" @{t}" for t in tags)
+    
+    # 判断是否使用 POM 模式
+    is_pom = architecture and architecture.get("mode") == "pom"
+    
     lines = ["import { test, expect } from '@playwright/test';", "", ""]
-    lines.append(f'test({_lit(title + tag_str)}, async ({{ page }}) => {{')
-    for step in ir["steps"]:
-        if step.get("comment"):
-            lines.append(f'  // {step["comment"]}')
-        for line in _step_ts(ir, step):
-            lines.append(f'  {line}')
-    lines.append("});")
+    
+    # POM 模式添加导入
+    if is_pom:
+        base_class = architecture.get("base_class", "BasePage")
+        pages_path = architecture.get("pages_path", "pages")
+        import_style = architecture.get("import_style", "relative")
+        
+        if import_style == "relative":
+            lines.append(f"import {{ {base_class} }} from '{pages_path}/basePage';")
+            page_class = architecture.get("page_class", _infer_page_name_ts(ir["name"], architecture))
+            lines.append(f"import {{ {page_class} }} from '{pages_path}/{page_class}';")
+        else:
+            lines.append(f"import {{ {base_class} }} from '{pages_path}/basePage';")
+            page_class = architecture.get("page_class", _infer_page_name_ts(ir["name"], architecture))
+            lines.append(f"import {{ {page_class} }} from '{pages_path}/{page_class}';")
+    
+    lines.append("")
+    
+    if is_pom:
+        # POM 模式：使用 Page Object
+        page_class = architecture.get("page_class", _infer_page_name_ts(ir["name"], architecture))
+        page_obj_var = page_class[0].lower() + page_class[1:]
+        method_mappings = architecture.get("method_mappings", {})
+        
+        lines.append(f'test({_lit(title + tag_str)}, async ({{ page }}) => {{')
+        lines.append(f'  const {page_obj_var} = new {page_class}(page);')
+        
+        for step in ir["steps"]:
+            if step.get("comment"):
+                lines.append(f'  // {step["comment"]}')
+            for line in _step_ts_pom(page_obj_var, step, method_mappings):
+                lines.append(f'  {line}')
+        
+        lines.append("});")
+    else:
+        # 线性模式：直接使用 page
+        lines.append(f'test({_lit(title + tag_str)}, async ({{ page }}) => {{')
+        for step in ir["steps"]:
+            if step.get("comment"):
+                lines.append(f'  // {step["comment"]}')
+            for line in _step_ts(ir, step):
+                lines.append(f'  {line}')
+        lines.append("});")
+    
     return "\n".join(lines) + "\n"
+
+
+def _infer_page_name_ts(test_name: str, architecture: dict) -> str:
+    """根据测试名称推断页面类名（TypeScript 版本）"""
+    pattern = architecture.get("page_pattern", "{name}Page")
+    
+    # 提取测试名称中的关键词，转换为英文
+    name_mapping = {
+        "登录": "Login",
+        "注册": "Register",
+        "首页": "Home",
+        "搜索": "Search",
+        "导航": "Navigation"
+    }
+    
+    # 移除"测试"、"Test"后缀
+    clean_name = test_name.replace("测试", "").replace("Test", "")
+    
+    # 尝试映射到英文
+    for cn, en in name_mapping.items():
+        if cn in clean_name:
+            page_name = en
+            break
+    else:
+        # 如果没有映射，使用原始名称的首字母大写
+        name_parts = clean_name.split("_")
+        if name_parts:
+            page_name = "".join(word.capitalize() for word in name_parts)
+        else:
+            page_name = "Page"
+    
+    return pattern.replace("{name}", page_name)
+
+
+def _step_ts_pom(page_obj: str, step: dict, method_mappings: dict = None) -> list:
+    """POM 模式的 TypeScript 步骤生成"""
+    action = step["action"]
+    lines = []
+    
+    if action == "goto":
+        # 使用 IR 中的方法映射，或默认 navigate
+        goto_method = method_mappings.get("goto", "navigate") if method_mappings else "navigate"
+        lines.append(f"await {page_obj}.{goto_method}();")
+    elif action == "fill":
+        locator = step["locator"]
+        value = step.get("value", "")
+        # 使用 IR 中的方法映射
+        if method_mappings and "fill" in method_mappings:
+            fill_mappings = method_mappings["fill"]
+            locator_value = str(locator.get("value", ""))
+            # 查找匹配的方法名
+            method_name = fill_mappings.get(locator_value)
+            if method_name:
+                lines.append(f'await {page_obj}.{method_name}("{value}");')
+            else:
+                lines.append(f'// TODO: 未找到 locator "{locator_value}" 的填充方法映射')
+        else:
+            lines.append(f'// TODO: 未配置 fill 方法映射')
+    elif action == "click":
+        locator = step["locator"]
+        # 使用 IR 中的方法映射
+        if method_mappings and "click" in method_mappings:
+            click_mappings = method_mappings["click"]
+            locator_value = str(locator.get("value", ""))
+            method_name = click_mappings.get(locator_value)
+            if method_name:
+                lines.append(f"await {page_obj}.{method_name}();")
+            else:
+                lines.append(f'// TODO: 未找到 locator "{locator_value}" 的点击方法映射')
+        else:
+            lines.append(f'// TODO: 未配置 click 方法映射')
+    elif action == "expect":
+        t = step.get("type")
+        value = step.get("value", "")
+        if t == "url_contains":
+            lines.append(f'await expect(page).toHaveURL(new RegExp(".*" + "{value}"));')
+        else:
+            lines.append(f'// TODO: 实现断言 {t}')
+    else:
+        lines.append(f"// TODO: 实现动作 {action}")
+    
+    return lines
 
 
 def generate(ir_path: Path, out_dir: Path, lang: str = "both") -> list:
     ir = json.loads(Path(ir_path).read_text(encoding="utf-8"))
+    
+    # 从 IR 读取架构配置
+    architecture = ir.get("architecture", {})
+    
+    # 语言处理：如果为 auto，从 IR 推断
+    if lang == "auto":
+        detected_lang = architecture.get("language")
+        if detected_lang in ["py", "ts"]:
+            lang = detected_lang
+        else:
+            lang = "both"
+    
     stem = Path(ir_path).stem.replace(".ir", "")
     written = []
     if lang in ("py", "both"):
         py_dir = out_dir / "python" / "tests"
         py_dir.mkdir(parents=True, exist_ok=True)
         p = py_dir / f"test_{stem}.py"
-        p.write_text(emit_python(ir), encoding="utf-8")
+        p.write_text(emit_python(ir, architecture), encoding="utf-8")
         written.append(p)
     if lang in ("ts", "both"):
         ts_dir = out_dir / "typescript" / "tests"
         ts_dir.mkdir(parents=True, exist_ok=True)
         p = ts_dir / f"{stem}.spec.ts"
-        p.write_text(emit_typescript(ir), encoding="utf-8")
+        p.write_text(emit_typescript(ir, architecture), encoding="utf-8")
         written.append(p)
     return written
 
@@ -330,10 +589,11 @@ def generate(ir_path: Path, out_dir: Path, lang: str = "both") -> list:
 def main(argv=None):
     ap = argparse.ArgumentParser(description="IR → Playwright(Python/TypeScript)代码生成")
     ap.add_argument("ir", nargs="+", help="一个或多个 IR JSON 文件")
-    ap.add_argument("--lang", choices=["py", "ts", "both"], default="both")
-    ap.add_argument("--out", default="out", help="输出目录")
+    ap.add_argument("--lang", choices=["py", "ts", "both", "auto"], default="auto", help="目标语言（auto=根据IR推断，默认auto）")
+    ap.add_argument("--out", default="./generated", help="输出目录（默认当前目录下的 generated 文件夹）")
     args = ap.parse_args(argv)
     out_dir = Path(args.out)
+    
     for ir_file in args.ir:
         for p in generate(Path(ir_file), out_dir, args.lang):
             print(f"  生成: {p}")

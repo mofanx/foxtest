@@ -19,6 +19,9 @@ test-results/
 playwright-report/
 runner/coverage/
 
+# User-generated test scripts (in current directory)
+generated/
+
 # Node.js
 node_modules/
 npm-debug.log*

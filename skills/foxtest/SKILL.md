@@ -29,6 +29,57 @@ NL/Markdown 用例 → (AI+dp-cli 探索) → IR(JSON) → codegen → Python/TS
 
 ## 工作流
 
+### 步骤 0 — 架构适配（可选）
+
+当用户需要适配现有项目架构时，通过自然语言告知参考文件：
+
+**用户提供参考**：
+```
+用户："参考 tests/test_login.py 生成注册页面测试"
+用户："我的项目使用 POM 模式，BasePage 在 pages/base.py"
+```
+
+**大模型操作**：
+1. 使用 `read_file` 读取用户指定的参考文件
+2. **大模型直接分析代码**：
+   - 识别导入语句 → 判断是否使用 POM
+   - 识别类继承 → 提取基类名称
+   - 识别命名模式 → 提取命名规范
+   - 识别导入风格 → 判断 absolute/relative
+3. **将架构信息写入 IR**：
+```json
+{
+  "name": "注册测试",
+  "architecture": {
+    "mode": "pom",
+    "language": "python",
+    "base_class": "BasePage",
+    "page_pattern": "{name}Page",
+    "import_style": "relative",
+    "pages_path": "pages",
+    "page_class": "LoginPage",
+    "method_mappings": {
+      "goto": "navigate",
+      "fill": {
+        "用户名": "fill_username",
+        "密码": "fill_password"
+      },
+      "click": {
+        "登录": "click_login_button"
+      }
+    }
+  },
+  "steps": [...]
+}
+```
+4. 调用 codegen：`python $SKILL/scripts/codegen.py generated/test.ir.json`
+
+**核心原则**：
+- IR 是单一事实源，所有配置信息保存在 IR 中
+- 大模型负责分析和决策（利用其代码理解能力）
+- codegen 负责根据 IR 生成代码（固定框架）
+- 无需命令行参数传递架构配置
+
 ### 步骤 1 — 解析用例(AI)
 读取用户的 Markdown/自然语言用例,逐条结构化为:用例名、所属功能、前置 URL、操作步骤、预期结果。
 一个用例 → 一份待填充的 IR。
@@ -70,25 +121,43 @@ NL/Markdown 用例 → (AI+dp-cli 探索) → IR(JSON) → codegen → Python/TS
 为降低 agent 出错率,可先用脚手架生成 IR 骨架:
 ```bash
 python $SKILL/scripts/ir_scaffold.py --name "登录-正常登录" --feature 登录 --base http://localhost:8000 \\
-  --intent "填写用户名" --intent "点击登录" > login.ir.json
+  --intent "填写用户名" --intent "点击登录" > generated/login.ir.json
 ```
-脚手架产出合法的 IR 结构(steps 含 goto + 占位步骤),locator 待 agent 根据实际探索填充。
+**目录约定**:所有用户生成的 IR 文件和测试脚本统一放在 `generated/` 目录中,保持工作目录整洁。
 
 产出:一份**真实跑通**的 IR(`<case>.ir.json`)。敏感值用 `<secret:ENV_NAME>` 占位,不要写明文密码。
 
 IR 字段全集见 `reference/ir-schema.md`;ref→Playwright 定位器映射见 `reference/locator-map.md`。
 
 ### 步骤 3 — 校验 IR
+
 ```bash
-python $SKILL/scripts/validate_ir.py <case>.ir.json
+python $SKILL/scripts/validate_ir.py generated/<case>.ir.json
 ```
-不通过则回到步骤 2 修正,不要带着非法 IR 往下走。
+
+**POM 模式额外校验**：
+如果使用 POM 模式，大模型需要确保 IR 包含完整的架构配置：
+
+- `architecture.mode`: "pom"
+- `architecture.language`: "py" 或 "ts"
+- `architecture.page_class`: 页面类名（如 "LoginPage"）
+- `architecture.method_mappings`: 方法映射（必需）
+  - `goto`: 导航方法名
+  - `fill`: 填充方法映射（按 locator value → 方法名）
+  - `click`: 点击方法映射（按 locator value → 方法名）
+
+**校验流程**：
+1. 大模型根据参考项目分析生成 IR
+2. 运行 `validate_ir.py` 校验 IR 格式
+3. 如果 POM 模式缺少 `method_mappings`，大模型根据参考项目补充
+4. 确保所有必需字段完整后进入下一步
 
 ### 步骤 4 — 生成双语言脚本
 ```bash
-python $SKILL/scripts/codegen.py <case>.ir.json --lang both --out out/
-# 产出 out/python/tests/test_<case>.py 与 out/typescript/tests/<case>.spec.ts
+python $SKILL/scripts/codegen.py generated/<case>.ir.json --lang both
+# 产出 generated/python/tests/test_<case>.py 与 generated/typescript/tests/<case>.spec.ts
 ```
+**默认输出**:如果不指定 `--out`,脚本默认生成到当前目录的 `generated/` 文件夹。
 - Python:`pytest + playwright`(页面对象/Allure 规范可对接 pwtest 技能)
 - TypeScript:`@playwright/test`
 
@@ -126,11 +195,11 @@ python $SKILL/scripts/codegen.py <case>.ir.json --lang both --out out/
 #### 覆盖度量
 ```bash
 # ① 用例覆盖:有多少用例生成了 IR / 通过
-python $SKILL/scripts/coverage.py cases --cases-dir <md目录> --ir-dir <ir目录>
+python $SKILL/scripts/coverage.py cases --cases-dir <md目录> --ir-dir generated/
 
 # ② UI 元素覆盖:页面可交互元素中有多少被脚本操作过
 #   先用 dp 抓全集:dp snapshot --format json > snapshot.json
-python $SKILL/scripts/coverage.py ui --snapshot snapshot.json --ir <case>.ir.json [...]
+python $SKILL/scripts/coverage.py ui --snapshot snapshot.json --ir generated/<case>.ir.json [...]
 
 # ③ 前端代码覆盖(需启用 CDP 覆盖采集)
 #   Python 端:使用 coverage_collector fixture 采集后转换

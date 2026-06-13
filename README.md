@@ -30,7 +30,12 @@ skills/foxtest/                    # Skill 本体(可 symlink 到 ~/.claude/skil
 │   └── coverage.py                # ① 用例覆盖 + ② UI 元素覆盖
 ├── reference/                     # ir-schema.md / locator-map.md(渐进披露)
 └── ir/{schema.json, examples/}
+runner/
+├── python/                        # Python 运行时配置 + 示例脚本
+├── typescript/                    # TypeScript 运行时配置 + 示例脚本
+└── demo-site/                     # 演示站点
 tests/                             # 脚本单测(确定性保障)
+generated/                         # 用户生成的工作区(IR + 测试脚本)
 ```
 
 ## 快速试用
@@ -41,10 +46,10 @@ tests/                             # 脚本单测(确定性保障)
 # 校验示例 IR
 python skills/foxtest/scripts/validate_ir.py skills/foxtest/ir/examples/login.ir.json
 
-# 生成双语言脚本
+# 生成双语言脚本（示例）
 python skills/foxtest/scripts/codegen.py skills/foxtest/ir/examples/*.ir.json --lang both --out runner/
 
-# 运行生成的测试 (需先安装依赖)
+# 运行示例测试 (需先安装依赖)
 cd runner/python
 pip install -r requirements.txt
 python -m playwright install chromium
@@ -69,8 +74,29 @@ python skills/foxtest/scripts/ir_scaffold.py \
 # 3. 校验 IR
 python skills/foxtest/scripts/validate_ir.py my_test.ir.json
 
-# 4. 生成测试脚本
-python skills/foxtest/scripts/codegen.py my_test.ir.json --lang py --out tests/
+# 4. 生成测试脚本（默认输出到当前目录的 generated/ 文件夹）
+python skills/foxtest/scripts/codegen.py my_test.ir.json --lang py
+
+# 如需适配项目架构，在 IR 中添加 architecture 字段
+# 示例：POM 模式配置
+# {
+#   "architecture": {
+#     "mode": "pom",
+#     "language": "py",
+#     "base_class": "BasePage",
+#     "page_pattern": "{name}Page",
+#     "import_style": "relative",
+#     "pages_path": "pages",
+#     "page_class": "LoginPage",
+#     "method_mappings": {
+#       "goto": "navigate",
+#       "fill": {"用户名": "fill_username", "密码": "fill_password"},
+#       "click": {"登录": "click_login_button"}
+#     }
+#   }
+# }
+# 然后直接生成，codegen 会自动从 IR 读取配置
+python skills/foxtest/scripts/codegen.py my_test.ir.json
 ```
 
 ### 运行单测
